@@ -40,16 +40,19 @@ export class EmbedBlockComponent<
 
   readonly isDraggingOnHost$ = signal(false);
   readonly isResizing$ = signal(false);
+  readonly hideOverlayAfterSelection$ = signal(false);
   // show overlay to prevent the iframe from capturing pointer events
   // when the block is dragging, resizing, or not selected
+  // after selection, auto-hide overlay after a short delay to allow video interaction
   readonly showOverlay$ = computed(
     () =>
       this.isDraggingOnHost$.value ||
       this.isResizing$.value ||
-      !this.selected$.value
+      (!this.selected$.value && !this.hideOverlayAfterSelection$.value)
   );
 
   private _fetchAbortController = new AbortController();
+  private _hideOverlayTimer: number | null = null;
 
   _cardStyle: EmbedCardStyle = 'horizontal';
 
@@ -157,11 +160,39 @@ export class EmbedBlockComponent<
       },
       { global: true }
     );
+
+    // Auto-hide overlay after selection to allow video interaction
+    this.disposables.add(
+      this.selected$.subscribe(selected => {
+        // Clear any existing timer
+        if (this._hideOverlayTimer !== null) {
+          clearTimeout(this._hideOverlayTimer);
+          this._hideOverlayTimer = null;
+        }
+
+        if (selected) {
+          // When selected, hide overlay after 500ms delay
+          this._hideOverlayTimer = window.setTimeout(() => {
+            this.hideOverlayAfterSelection$.value = true;
+            this._hideOverlayTimer = null;
+          }, 500);
+        } else {
+          // When deselected, reset the flag immediately
+          this.hideOverlayAfterSelection$.value = false;
+        }
+      })
+    );
   }
 
   override disconnectedCallback(): void {
     super.disconnectedCallback();
     this._fetchAbortController.abort();
+
+    // Clean up the timer if it exists
+    if (this._hideOverlayTimer !== null) {
+      clearTimeout(this._hideOverlayTimer);
+      this._hideOverlayTimer = null;
+    }
   }
 
   protected override accessor blockContainerStyles: StyleInfo | undefined = {

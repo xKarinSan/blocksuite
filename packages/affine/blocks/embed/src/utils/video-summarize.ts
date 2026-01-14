@@ -3,10 +3,14 @@ import {
   NotificationProvider,
   OpenAIProvider,
   type ToolbarContext,
+  type VideoSummaryOptions,
 } from '@blocksuite/affine-shared/services';
 import type { BlockModel } from '@blocksuite/store';
 import { Text } from '@blocksuite/store';
 import { html } from 'lit';
+
+import { extractVideoFrames } from './video-frames.js';
+import { fetchVideoTranscript } from './video-transcript.js';
 
 /**
  * Shows a dialog to configure OpenAI API key
@@ -60,6 +64,7 @@ export async function summarizeVideo(
       url?: string;
       title?: string | null;
       description?: string | null;
+      image?: string | null;
     };
   }
 ): Promise<void> {
@@ -89,16 +94,48 @@ export async function summarizeVideo(
 
   // Show loading notification
   notification?.notify({
-    title: 'Summarizing video...',
-    message: 'This may take a moment',
+    title: 'Analyzing video...',
+    message: 'Fetching transcript and frames...',
     accent: 'info',
   });
 
   try {
-    const summary = await openAI.summarizeVideo(url, {
+    // Step 1: Fetch transcript in parallel with frames
+    const [transcriptResult, frames] = await Promise.all([
+      fetchVideoTranscript(url),
+      extractVideoFrames(url, { image: model.props.image || undefined }),
+    ]);
+
+    const hasTranscript = !!transcriptResult.transcript;
+    const hasFrames = frames.length > 0;
+
+    // Update notification based on what we found
+    let progressMessage = 'Generating summary';
+    if (hasTranscript && hasFrames) {
+      progressMessage += ' from transcript and visual content...';
+    } else if (hasTranscript) {
+      progressMessage += ' from transcript...';
+    } else if (hasFrames) {
+      progressMessage += ' from visual content...';
+    } else {
+      progressMessage += ' from metadata...';
+    }
+
+    notification?.notify({
+      title: 'Summarizing video...',
+      message: progressMessage,
+      accent: 'info',
+    });
+
+    // Step 2: Generate summary with all available data
+    const options: VideoSummaryOptions = {
       title: title || undefined,
       description: description || undefined,
-    });
+      transcript: transcriptResult.transcript || undefined,
+      frames: frames.length > 0 ? frames : undefined,
+    };
+
+    const summary = await openAI.summarizeVideo(url, options);
 
     // Insert summary as a new paragraph block below the video
     const parent = model.parent;
