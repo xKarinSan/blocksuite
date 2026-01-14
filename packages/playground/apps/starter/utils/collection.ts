@@ -10,8 +10,8 @@ import {
   type BlobSource,
   BroadcastChannelAwarenessSource,
   BroadcastChannelDocSource,
+  IndexedDBDocSource,
   IndexedDBBlobSource,
-  MemoryBlobSource,
 } from '@blocksuite/affine/sync';
 import * as Y from 'yjs';
 
@@ -36,11 +36,16 @@ export function createStarterDocCollection(
     docSources = {
       main: new BroadcastChannelDocSource(`broadcast-channel-${room}`),
     };
+  } else {
+    // Enable IndexedDB for document persistence when not in a room
+    docSources = {
+      main: new IndexedDBDocSource('blocksuite-local'),
+    };
   }
   const id = room ?? `starter-${Math.random().toString(16).slice(2, 8)}`;
 
   const blobSources = {
-    main: new MemoryBlobSource(),
+    main: new IndexedDBBlobSource(collectionId), // Use IndexedDB for persistent blob storage
     shadows: [] as BlobSource[],
   } satisfies DocCollectionOptions['blobSources'];
   if (blobSourceArgs.includes('mock')) {
