@@ -1,4 +1,5 @@
 import { reassociateConnectorsCommand } from '@blocksuite/affine-block-surface';
+import { AIStarIcon } from '@blocksuite/affine-components/icons';
 import { toast } from '@blocksuite/affine-components/toast';
 import {
   BookmarkStyles,
@@ -37,6 +38,8 @@ import { computed, signal } from '@preact/signals-core';
 import { html } from 'lit';
 import { keyed } from 'lit/directives/keyed.js';
 import * as Y from 'yjs';
+
+import { summarizeVideo } from '../utils/video-summarize.js';
 
 import type { EmbedFigmaBlockComponent } from '../embed-figma-block';
 import type { EmbedGithubBlockComponent } from '../embed-github-block';
@@ -347,6 +350,26 @@ function createBuiltinToolbarConfigForExternal(
             ...trackBaseProps,
             control: 'add caption',
           });
+        },
+      },
+      {
+        id: 'd.summarize',
+        tooltip: 'Summarize with AI',
+        icon: AIStarIcon,
+        when(ctx) {
+          // Only show for YouTube and Loom videos
+          const model = ctx.getCurrentModel();
+          if (!model || !isExternalEmbedModel(model)) return false;
+          return (
+            model.flavour === 'affine:embed-youtube' ||
+            model.flavour === 'affine:embed-loom'
+          );
+        },
+        async run(ctx) {
+          const model = ctx.getCurrentModel();
+          if (!model || !isExternalEmbedModel(model)) return;
+
+          await summarizeVideo(ctx, model);
         },
       },
       {

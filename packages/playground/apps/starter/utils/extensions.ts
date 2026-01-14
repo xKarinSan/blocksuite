@@ -5,6 +5,8 @@ import {
   EditorSettingExtension,
   FeatureFlagService,
   FontConfigExtension,
+  NotificationExtension,
+  OpenAIExtension,
   ParseDocUrlExtension,
 } from '@blocksuite/affine/shared/services';
 import type { ExtensionType, Store, Workspace } from '@blocksuite/affine/store';
@@ -14,6 +16,7 @@ import { getTestViewManager } from '@blocksuite/integration-test/view';
 import {
   mockDocModeService,
   mockEditorSetting,
+  mockNotificationService,
   mockParseDocUrlService,
 } from '../../_common/mock-services';
 
@@ -28,6 +31,8 @@ export function getTestCommonExtensions(
       setting$: mockEditorSetting(),
     }),
     ParseDocUrlExtension(mockParseDocUrlService(editor.doc.workspace)),
+    NotificationExtension(mockNotificationService(editor)),
+    OpenAIExtension(),
     {
       setup: di => {
         di.override(DocModeProvider, mockDocModeService(editor));

@@ -106,7 +106,7 @@ Pre-built UI components and editors:
 
 - **`@blocksuite/affine-components`**: Reusable UI components (color-picker, context-menu, toast, etc.).
 
-- **`@blocksuite/affine-shared`**: Shared utilities, commands, services, theme, and types used across affine packages.
+- **`@blocksuite/affine-shared`**: Shared utilities, commands, services, theme, and types used across affine packages. Includes service integrations like OpenAI for AI-powered features.
 
 - **`@blocksuite/affine-model`**: Block model definitions and schemas.
 
@@ -166,6 +166,95 @@ When adding new blocks:
 2. Register the block schema in the appropriate schema collection
 3. Add to `@blocksuite/affine/all` package exports
 4. Follow existing block patterns for consistency
+
+## AI Service Integration
+
+BlockSuite includes an OpenAI service integration for AI-powered features like video summarization. The service is implemented as an extension using the dependency injection system.
+
+### Architecture
+
+**Service Location**: `packages/affine/shared/src/services/ai-service/`
+
+- **`openai-service.ts`**: Core service implementation with OpenAI API integration
+- **`index.ts`**: Public exports for the service
+
+### Key Components
+
+**OpenAIService Interface**: Provides methods for AI operations:
+
+- `configure(config)`: Set API key, model, and endpoint
+- `getConfig()`: Retrieve current configuration
+- `isConfigured()`: Check if service is ready to use
+- `summarizeVideo(url, metadata)`: Generate video summaries using GPT models
+
+**OpenAIProvider**: Dependency injection identifier for accessing the service in blocks/widgets.
+
+**OpenAIExtension()**: Extension factory function that registers the service with the DI container.
+
+### Configuration
+
+Default settings:
+
+- **Model**: `gpt-4-turbo` (configurable)
+- **Endpoint**: `https://api.openai.com/v1/chat/completions` (configurable)
+- **Temperature**: 0.7
+- **Max Tokens**: 500
+
+### Usage Example
+
+```typescript
+// In a block or widget with access to std
+const openAI = ctx.std.getOptional(OpenAIProvider);
+
+if (!openAI?.isConfigured()) {
+  // Prompt user for API key
+  openAI?.configure({ apiKey: 'sk-...' });
+}
+
+// Use the service
+const summary = await openAI.summarizeVideo(videoUrl, {
+  title: 'Video Title',
+  description: 'Video description',
+});
+```
+
+### Integration Points
+
+**Video Summarization**: Implemented in `packages/affine/blocks/embed/src/utils/video-summarize.ts`
+
+- Prompts for API key if not configured
+- Shows loading notifications during processing
+- Inserts generated summary as a paragraph block below the video
+- Handles errors with user-friendly notifications
+
+**Extension Registration**: Add to editor specs in `extensions.ts`:
+
+```typescript
+import { OpenAIExtension } from '@blocksuite/affine/shared/services';
+
+const extensions = [
+  OpenAIExtension(),
+  // ... other extensions
+];
+```
+
+### Adding New AI Features
+
+When adding new AI-powered features:
+
+1. Use `ctx.std.getOptional(OpenAIProvider)` to access the service
+2. Check `isConfigured()` before making API calls
+3. Provide clear user feedback (loading states, errors, success messages)
+4. Use the NotificationProvider for user notifications
+5. Handle API errors gracefully with try-catch blocks
+6. Consider rate limiting and cost implications
+
+### Security Considerations
+
+- API keys are stored in memory only (not persisted)
+- Users must provide their own OpenAI API keys
+- No BlockSuite-provided keys or proxies
+- All API calls go directly to OpenAI's endpoints from the client
 
 ## Common Gotchas
 
