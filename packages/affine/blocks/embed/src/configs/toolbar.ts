@@ -40,6 +40,21 @@ import { keyed } from 'lit/directives/keyed.js';
 import * as Y from 'yjs';
 
 import { summarizeVideo } from '../utils/video-summarize.js';
+import { captureVideoTimestamp } from '../utils/video-timestamp.js';
+
+const TimestampIcon = html`<svg
+  width="20"
+  height="20"
+  viewBox="0 0 20 20"
+  fill="currentColor"
+  xmlns="http://www.w3.org/2000/svg"
+>
+  <path
+    fill-rule="evenodd"
+    clip-rule="evenodd"
+    d="M10 3.75C6.54822 3.75 3.75 6.54822 3.75 10C3.75 13.4518 6.54822 16.25 10 16.25C13.4518 16.25 16.25 13.4518 16.25 10C16.25 6.54822 13.4518 3.75 10 3.75ZM2.5 10C2.5 5.85786 5.85786 2.5 10 2.5C14.1421 2.5 17.5 5.85786 17.5 10C17.5 14.1421 14.1421 17.5 10 17.5C5.85786 17.5 2.5 14.1421 2.5 10ZM10 5.625C10.3452 5.625 10.625 5.90482 10.625 6.25V9.68359L12.9419 11.0669C13.2323 11.2468 13.3229 11.6286 13.143 11.919C12.9632 12.2094 12.5814 12.3 12.2909 12.1201L9.66592 10.4951C9.48833 10.3855 9.375 10.1989 9.375 10V6.25C9.375 5.90482 9.65482 5.625 10 5.625Z"
+  />
+</svg>`;
 
 import type { EmbedFigmaBlockComponent } from '../embed-figma-block';
 import type { EmbedGithubBlockComponent } from '../embed-github-block';
@@ -370,6 +385,29 @@ function createBuiltinToolbarConfigForExternal(
           if (!model || !isExternalEmbedModel(model)) return;
 
           await summarizeVideo(ctx, model);
+        },
+      },
+      {
+        id: 'd.timestamp',
+        tooltip: 'Capture Current Timestamp',
+        icon: TimestampIcon,
+        when(ctx) {
+          // Only show for YouTube and Loom videos
+          const model = ctx.getCurrentModel();
+          if (!model || !isExternalEmbedModel(model)) return false;
+          return (
+            model.flavour === 'affine:embed-youtube' ||
+            model.flavour === 'affine:embed-loom'
+          );
+        },
+        async run(ctx) {
+          const block = ctx.getCurrentBlockByType(klass);
+          if (!block) return;
+
+          const model = ctx.getCurrentModel();
+          if (!model || !isExternalEmbedModel(model)) return;
+
+          await captureVideoTimestamp(ctx, model, block);
         },
       },
       {

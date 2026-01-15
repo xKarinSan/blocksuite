@@ -224,6 +224,40 @@ export const styles = css`
       fill: var(--affine-link-color);
     }
   }
+
+  .affine-embed-youtube-auto-capture-toggle {
+    display: inline-flex;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--affine-border-color);
+  }
+
+  .affine-embed-youtube-auto-capture-toggle label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    user-select: none;
+    padding: 4px 0;
+  }
+
+  .affine-embed-youtube-auto-capture-toggle input[type='checkbox'] {
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+    margin: 0;
+    flex-shrink: 0;
+  }
+
+  .affine-embed-youtube-auto-capture-toggle span {
+    color: var(--affine-text-secondary-color);
+    font-family: var(--affine-font-family);
+    font-size: var(--affine-font-xs);
+    font-style: normal;
+    font-weight: 400;
+    line-height: 20px;
+    flex: 1;
+  }
 `;
 
 export const YoutubeIcon = html`<svg

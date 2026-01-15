@@ -40,6 +40,157 @@ export class EmbedYoutubeBlockComponent extends EmbedBlockComponent<
     );
   };
 
+  /**
+   * Get the current playback time from the YouTube iframe
+   * @returns Promise that resolves with the current time in seconds, or null if unavailable
+   */
+  async getCurrentTime(): Promise<number | null> {
+    return new Promise(resolve => {
+      const iframe = this.querySelector('iframe');
+      if (!iframe?.contentWindow) {
+        resolve(null);
+        return;
+      }
+
+      const handleMessage = (event: MessageEvent) => {
+        if (event.origin !== 'https://www.youtube.com') return;
+
+        try {
+          const data =
+            typeof event.data === 'string'
+              ? JSON.parse(event.data)
+              : event.data;
+
+          if (
+            data.event === 'infoDelivery' &&
+            data.info?.currentTime !== undefined
+          ) {
+            window.removeEventListener('message', handleMessage);
+            resolve(data.info.currentTime);
+          }
+        } catch (e) {
+          // Ignore parsing errors
+        }
+      };
+
+      window.addEventListener('message', handleMessage);
+
+      // Send listening event first
+      try {
+        iframe.contentWindow.postMessage(
+          JSON.stringify({
+            event: 'listening',
+            id: iframe.id || 'ytplayer',
+          }),
+          '*'
+        );
+      } catch (e) {
+        console.error('Error sending listening event:', e);
+      }
+
+      // Then request current time
+      setTimeout(() => {
+        try {
+          iframe.contentWindow?.postMessage(
+            JSON.stringify({
+              event: 'command',
+              func: 'getCurrentTime',
+              args: '',
+            }),
+            '*'
+          );
+        } catch (e) {
+          console.error('Error sending getCurrentTime command:', e);
+        }
+      }, 100);
+
+      // Timeout after 2 seconds
+      setTimeout(() => {
+        window.removeEventListener('message', handleMessage);
+        resolve(null);
+      }, 2000);
+    });
+  }
+
+  /**
+   * Setup listener for YouTube player state changes (play, pause, etc.)
+   */
+  private _setupYouTubePlayerListener() {
+    const handlePlayerStateChange = (event: MessageEvent) => {
+      if (event.origin !== 'https://www.youtube.com') return;
+
+      try {
+        const data =
+          typeof event.data === 'string'
+            ? JSON.parse(event.data)
+            : event.data;
+
+        // YouTube player state: 2 = paused
+        if (
+          data.event === 'infoDelivery' &&
+          data.info?.playerState === 2 &&
+          this.model.props.autoCaptureOnPause
+        ) {
+          this._handlePauseEvent(data.info.currentTime);
+        }
+      } catch (e) {
+        // Ignore parsing errors
+      }
+    };
+
+    window.addEventListener('message', handlePlayerStateChange);
+    this.disposables.add(() => {
+      window.removeEventListener('message', handlePlayerStateChange);
+    });
+
+    // Enable player state change events
+    const iframe = this.querySelector('iframe');
+    if (iframe?.contentWindow) {
+      try {
+        iframe.contentWindow.postMessage(
+          JSON.stringify({
+            event: 'listening',
+            id: iframe.id || 'ytplayer',
+          }),
+          '*'
+        );
+      } catch (e) {
+        console.error('Error setting up YouTube player listener:', e);
+      }
+    }
+  }
+
+  /**
+   * Handle pause event and capture timestamp if enabled
+   */
+  private async _handlePauseEvent(currentTime?: number) {
+    if (!this.model.props.autoCaptureOnPause) return;
+
+    // If currentTime is provided in the pause event, use it
+    // Otherwise, try to get it via getCurrentTime
+    const time = currentTime ?? (await this.getCurrentTime());
+
+    if (time !== null && time > 0) {
+      // Use the video timestamp utility to capture and insert
+      const { captureVideoTimestamp } = await import(
+        '../utils/video-timestamp.js'
+      );
+
+      // Create a minimal toolbar context
+      const ctx = {
+        host: this.host,
+        std: this.std,
+        store: this.store,
+      };
+
+      try {
+        await captureVideoTimestamp(ctx, this.model, this);
+      } catch (error) {
+        console.error('Error auto-capturing timestamp on pause:', error);
+      }
+    }
+  }
+
   private _handleDoubleClick(event: MouseEvent) {
     event.stopPropagation();
     this.open();
@@ -57,6 +208,14 @@ export class EmbedYoutubeBlockComponent extends EmbedBlockComponent<
     event.stopPropagation();
     this._selectBlock();
   }
+
+  private _toggleAutoCaptureOnPause = (event: Event) => {
+    event.stopPropagation();
+    const checkbox = event.target as HTMLInputElement;
+    this.store.updateBlock(this.model, {
+      autoCaptureOnPause: checkbox.checked,
+    });
+  };
 
   override connectedCallback() {
     super.connectedCallback();
@@ -93,6 +252,9 @@ export class EmbedYoutubeBlockComponent extends EmbedBlockComponent<
     matchMedia('print').addEventListener('change', () => {
       this._showImage = matchMedia('print').matches;
     });
+
+    // Setup YouTube player listener for auto-capture on pause
+    this._setupYouTubePlayerListener();
   }
 
   override renderBlock() {
@@ -146,7 +308,7 @@ export class EmbedYoutubeBlockComponent extends EmbedBlockComponent<
                     <iframe
                       id="ytplayer"
                       type="text/html"
-                      src=${`https://www.youtube.com/embed/${videoId}`}
+                      src=${`https://www.youtube.com/embed/${videoId}?enablejsapi=1`}
                       frameborder="0"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                       allowfullscreen
@@ -211,6 +373,19 @@ export class EmbedYoutubeBlockComponent extends EmbedBlockComponent<
                 ${OpenIcon}
               </div>
             </div>
+
+            ${videoId
+              ? html`
+                  <div class="affine-embed-youtube-auto-capture-toggle">
+                      <input
+                        type="checkbox"
+                        .checked=${this.model.props.autoCaptureOnPause}
+                        @change=${this._toggleAutoCaptureOnPause}
+                      />
+                      Auto-capture timestamp on pause
+                  </div>
+                `
+              : nothing}
           </div>
         </div>
       `

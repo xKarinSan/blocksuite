@@ -11,6 +11,7 @@ const defaultEmbedYoutubeProps: EmbedYoutubeBlockProps = {
   style: EmbedYoutubeStyles[0],
   url: '',
   caption: null,
+  autoCaptureOnPause: false,
 
   image: null,
   title: null,

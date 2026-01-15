@@ -19,6 +19,7 @@ export type EmbedYoutubeBlockProps = {
   style: (typeof EmbedYoutubeStyles)[number];
   url: string;
   caption: string | null;
+  autoCaptureOnPause: boolean;
 } & EmbedYoutubeBlockUrlData;
 
 export class EmbedYoutubeModel extends defineEmbedModel<EmbedYoutubeBlockProps>(
