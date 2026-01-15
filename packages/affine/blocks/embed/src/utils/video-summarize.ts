@@ -92,6 +92,9 @@ export async function summarizeVideo(
 
   const notification = ctx.std.getOptional(NotificationProvider);
 
+  // Toast when user clicks AI summary
+  toast(ctx.host, 'Starting video analysis...');
+
   // Show loading notification
   notification?.notify({
     title: 'Analyzing video...',
@@ -162,6 +165,9 @@ export async function summarizeVideo(
       accent: 'success',
       duration: 3000,
     });
+
+    // Toast when summary is generated successfully
+    toast(ctx.host, 'Summary generated successfully!');
   } catch (error) {
     const message =
       error instanceof Error ? error.message : 'Unknown error occurred';
@@ -171,5 +177,8 @@ export async function summarizeVideo(
       accent: 'error',
       duration: 5000,
     });
+
+    // Toast when summary fails to generate
+    toast(ctx.host, `Failed to generate summary: ${message}`);
   }
 }

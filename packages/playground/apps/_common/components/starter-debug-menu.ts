@@ -15,6 +15,7 @@ import '@shoelace-style/shoelace/dist/components/tooltip/tooltip.js';
 import '@shoelace-style/shoelace/dist/themes/light.css';
 import '@shoelace-style/shoelace/dist/themes/dark.css';
 import './left-side-panel.js';
+import './openai-settings-modal.js';
 
 import { PresentTool } from '@blocksuite/affine/blocks/frame';
 import { ExportManager } from '@blocksuite/affine/blocks/surface';
@@ -80,6 +81,7 @@ import type { CustomOutlinePanel } from './custom-outline-panel.js';
 import type { CustomOutlineViewer } from './custom-outline-viewer.js';
 import type { DocsPanel } from './docs-panel.js';
 import type { LeftSidePanel } from './left-side-panel.js';
+import type { OpenAISettingsModal } from './openai-settings-modal.js';
 
 const basePath =
   'https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.11.2/dist';
@@ -620,6 +622,10 @@ export class StarterDebugMenu extends ShadowlessElement {
     this.leftSidePanel.toggle(this.docsPanel);
   }
 
+  private _toggleOpenAISettings() {
+    this._showOpenAISettings = !this._showOpenAISettings;
+  }
+
   private _toggleFramePanel() {
     this.framePanel.toggleDisplay();
   }
@@ -945,16 +951,34 @@ export class StarterDebugMenu extends ShadowlessElement {
             </sl-button>
           </sl-tooltip>
 
-          <sl-button
-            data-testid="docs-button"
-            size="small"
-            @click="${this._toggleDocsPanel}"
-            data-docs-panel-toggle
-          >
-            Docs
-          </sl-button>
+          <sl-button-group>
+            <sl-button
+              data-testid="docs-button"
+              size="small"
+              @click="${this._toggleDocsPanel}"
+              data-docs-panel-toggle
+            >
+              Docs
+            </sl-button>
+            <sl-tooltip content="OpenAI Settings" placement="bottom" hoist>
+              <sl-button
+                size="small"
+                @click="${this._toggleOpenAISettings}"
+                data-openai-settings-toggle
+              >
+                <sl-icon name="gear"></sl-icon>
+              </sl-button>
+            </sl-tooltip>
+          </sl-button-group>
         </div>
       </div>
+      ${this._showOpenAISettings
+        ? html`<openai-settings-modal
+            .onClose=${() => {
+              this._showOpenAISettings = false;
+            }}
+          ></openai-settings-modal>`
+        : ''}
     `;
   }
 
@@ -992,6 +1016,9 @@ export class StarterDebugMenu extends ShadowlessElement {
 
   @state()
   private accessor _hasOffset = false;
+
+  @state()
+  private accessor _showOpenAISettings = false;
 
   @query('#block-type-dropdown')
   accessor blockTypeDropdown!: SlDropdown;
